@@ -29,7 +29,9 @@ MAIN_DATA = Path(os.environ.get("XDG_DATA_HOME") or HOME / ".local" / "share") /
 # the parts of a BedrockOnLinux home every profile shares (bol/profiles.py _SHARED_DIRS)
 # + xodus-home: the Microsoft Store sign-in and device registration (one per PC, not per instance:
 # Microsoft allows 10 devices per account)
-SHARED_DIRS = ("games", "proton", "umu", "cache", "xodus", "xodus-home", "xodus-xcurl", "xodus-webview")
+# + msa / winegdk-preauth: the Xbox (online play) sign-in, so you sign in once, not once per instance
+SHARED_DIRS = ("games", "proton", "umu", "cache", "xodus", "xodus-home", "xodus-xcurl", "xodus-webview",
+               "msa", "winegdk-preauth")
 ROAMING = Path("compatdata/pfx/drive_c/users/steamuser/AppData/Roaming/Minecraft Bedrock")
 SHARED_MOJANG = ROAMING / "Users" / "Shared" / "games" / "com.mojang"
 PER_ACCOUNT = {"minecraftWorlds", "world_templates", "custom_skins"}   # the rest is in Users/Shared
@@ -186,6 +188,9 @@ def ensure_home(data: Path) -> Path:
         if link.is_symlink() or link.is_file():
             link.unlink()
         elif link.is_dir():
+            if not any(target.iterdir()):          # keep what this instance had (e.g. its sign-in)
+                for item in link.iterdir():
+                    shutil.move(str(item), str(target / item.name))
             shutil.rmtree(link)
         link.symlink_to(target, target_is_directory=True)
     return h
@@ -220,6 +225,47 @@ def prepare(name: str, data: Path, status=print):
     _stream(["setup", "--mc", edition, "--version", version] + (["--beta"] if edition != "release" else []),
             h, status, f"set up Bedrock {version}")
     _versions.clear()
+
+
+# --- Xbox sign-in (Realms, servers, Friends, Marketplace) --------------------------------
+
+def xbox_signed_in() -> bool:
+    try:
+        return bool(json.loads((_main_data() / "msa" / "token.json").read_text()).get("refresh_token"))
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
+class XboxLogin:
+    """`bedrock-on-linux login`: Microsoft's device-code sign-in. on_code(url, code) is called
+    with what to enter at microsoft.com/link; run() returns True once signed in."""
+
+    def __init__(self, data: Path, on_code):
+        self.data, self.on_code, self.proc = data, on_code, None
+
+    def run(self) -> bool:
+        cmd = command()
+        if not cmd:
+            raise BolError("BedrockOnLinux isn't installed")
+        ensure_home(self.data)
+        self.proc = subprocess.Popen([*cmd, "login"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                     env=_env(home(self.data)), stdin=subprocess.DEVNULL)
+        tail = []
+        for line in self.proc.stdout:
+            line = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", line).strip()
+            tail = (tail + [line])[-8:]
+            if m := re.search(r"(https?://\S+)\s+code\s+(\S+)", line):
+                self.on_code(m.group(1), m.group(2))
+        code = self.proc.wait()
+        if xbox_signed_in():
+            return True
+        if code not in (0, None) and code > 0:
+            raise BolError("The Microsoft sign-in didn't finish:\n\n" + "\n".join(tail))
+        return False
+
+    def stop(self):
+        if self.proc and self.proc.poll() is None:
+            self.proc.terminate()
 
 
 def play_command(data: Path) -> list[str]:

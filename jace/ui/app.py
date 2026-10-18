@@ -413,6 +413,20 @@ class MainWindow(QMainWindow):
             self.go(3)
             return
 
+        if inst.is_bedrock and sys.platform == "linux":     # Realms, servers and Friends need Xbox sign-in
+            from jace import bol
+            if not bol.installed():               # its sign-in needs BedrockOnLinux: get it, then come back
+                def got(_):
+                    self.play(inst, server)
+                self.run_job(lambda callback: bol.install(callback["setStatus"]), "Installing BedrockOnLinux",
+                             got, True)
+                return
+            if not bol.xbox_signed_in():
+                from jace.ui.bedrock_signin import XboxSignInDialog
+                dlg = XboxSignInDialog(inst.game_dir, self)
+                if not dlg.exec() and not dlg.offline:
+                    return
+
         if inst.is_education and sys.platform == "linux":   # first Play: set up the Android emulator
             from jace import education
             scr = self.screen() or QApplication.primaryScreen()

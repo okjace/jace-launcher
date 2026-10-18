@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.11.1
+- **Bedrock on Linux asks you to sign in to Xbox, so Realms, servers, Friends and the Marketplace work.** Before, the game started signed out.
+  - Pressing Play opens a small window with a code. Your browser opens microsoft.com/link with the code filled in (it's also copied), and you sign in with the Microsoft account that owns Minecraft. The window closes by itself when you're done.
+  - **Play offline** is still there for single-player and LAN.
+- You sign in once for all your Bedrock instances, not once per instance.
+
 ## 1.11.0
 - **Bedrock on Linux now uses [BedrockOnLinux](https://github.com/Wyze3306/BedrockOnLinux)** instead of the Minecraft Bedrock Launcher. It runs the Windows version of Minecraft Bedrock, with real Xbox sign-in, Friends, servers, Realms and the Marketplace. You need a Microsoft account that owns Minecraft; Google Play isn't involved anymore.
   - Jace Launcher downloads BedrockOnLinux and checks it against its release's checksums. If you already have a copy in `~/Applications`, installed as a package, or as a Flatpak, it uses that one.
