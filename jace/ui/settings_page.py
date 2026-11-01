@@ -224,6 +224,13 @@ class SettingsPage(QWidget):
         f.addWidget(self.jace_btn)
         f.addWidget(open_app)
         lay.addWidget(g)
+        import shutil as _sh
+        if sys.platform.startswith("linux") and _sh.which("jace-account"):   # Jace OS
+            jos = QCheckBox("Sign in to Jace Social with this computer's Jace account (when no Microsoft "
+                            "account is selected)")
+            jos.setChecked(settings.get("jace_os_signin") is not False)
+            jos.toggled.connect(lambda on: settings.set("jace_os_signin", on))
+            lay.addWidget(jos)
         self._jace = None
 
         # --- About

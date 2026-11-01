@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.11.2
+- **Jace OS: sign in to Jace Social with the computer's Jace account.** When no Microsoft account is selected (an offline account, or none), Jace Launcher signs in to Jace Social with your Jace account on Jace OS. Before, friends and chat needed a Microsoft account.
+  - It uses Jace OS's `jace-account` tool. Jace Social checks the token with Jace before making a session.
+  - If it isn't possible (not Jace OS, not signed in to Jace, no network), you see the usual sign-in message instead of an error. Tokens are never logged.
+  - Turn it off in **Settings → Jace Social**.
+  - Microsoft accounts keep signing in with Minecraft, so your Jace Social account stays the same.
+
 ## 1.11.1
 - **Bedrock on Linux asks you to sign in to Xbox, so Realms, servers, Friends and the Marketplace work.** Before, the game started signed out.
   - Pressing Play opens a small window with a code. Your browser opens microsoft.com/link with the code filled in (it's also copied), and you sign in with the Microsoft account that owns Minecraft. The window closes by itself when you're done.

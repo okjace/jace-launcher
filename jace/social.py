@@ -4,6 +4,11 @@ Sign-in works like joining a Minecraft server: the server hands out a one-time
 id, we tell Mojang's session server we "joined" it with our Minecraft token, and
 the server asks Mojang to confirm. Only the real account owner can do that, and
 the Minecraft token never leaves this computer except to Mojang.
+
+On Jace OS, with no Microsoft account selected (offline accounts can't be verified that
+way), the computer's Jace account signs you in instead (jace/jaceos.py). Microsoft
+accounts keep the Minecraft sign-in: a Jace sign-in could land on a different Jace
+Social account than the one their Minecraft account uses.
 """
 import time
 
@@ -13,6 +18,7 @@ from jace.net import session
 
 DEFAULT_URL = "https://jace-social.vercel.app"
 SESSIONS_FILE = DATA_DIR / "social.json"
+JACE_OS_KEY = "jace-os"            # social.json key of the Jace OS session (the others are Minecraft UUIDs)
 
 
 class SocialError(Exception):
@@ -27,19 +33,25 @@ def _sessions() -> dict:
     return read_json(SESSIONS_FILE, {})
 
 
-def current_session() -> dict | None:
-    """Saved Jace Social session for the selected Minecraft account, if any."""
+def _key() -> str | None:
+    """Which saved session belongs to what's selected: the Minecraft account's, or Jace OS's."""
     acc = accounts.current()
-    if not acc or acc.get("type") != "msa":
-        return None
-    s = _sessions().get(acc["uuid"])
+    if acc and acc.get("type") == "msa":
+        return acc["uuid"]
+    from jace import jaceos
+    return JACE_OS_KEY if jaceos.enabled() else None
+
+
+def current_session() -> dict | None:
+    """Saved Jace Social session for the selected Minecraft account (or Jace OS), if any."""
+    key = _key()
+    s = _sessions().get(key) if key else None
     if s and s.get("expires_at", "") > time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()):
         return s
     return None
 
 
-def can_sign_in() -> str | None:
-    """None if the selected account can use Jace Social, else why not."""
+def _why_not() -> str | None:
     acc = accounts.current()
     if not acc:
         return "Add a Microsoft account to use friends and chat."
@@ -48,8 +60,40 @@ def can_sign_in() -> str | None:
     return None
 
 
+def can_sign_in() -> str | None:
+    """None if Jace Social can be signed in to (Microsoft account, or Jace OS), else why not."""
+    if _key() == JACE_OS_KEY:
+        return None
+    return _why_not()
+
+
+def _sign_in_jace_os() -> dict | None:
+    """Sign in with the computer's Jace account (Jace OS). None if that isn't possible."""
+    from jace import jaceos
+    try:
+        cfg = session.get(base_url() + "/api/v1/auth/jace/os", timeout=15).json()
+        tok = jaceos.token_for(cfg.get("client_id") or "", cfg.get("scope") or "profile")
+        if not tok:
+            return None
+        r = session.post(base_url() + "/api/v1/auth/jace/os", json={"access_token": tok}, timeout=20)
+        s = r.json() if r.ok else None
+    except Exception:  # noqa: BLE001 - quietly fall back to the normal sign-in
+        return None
+    if not s or not s.get("token"):
+        return None
+    all_s = _sessions()
+    all_s[JACE_OS_KEY] = s
+    write_json(SESSIONS_FILE, all_s)
+    return s
+
+
 def sign_in() -> dict:
-    """Verify the selected Microsoft account with Jace Social. Blocking."""
+    """Sign in to Jace Social: the selected Microsoft account, or else Jace OS. Blocking."""
+    if _key() == JACE_OS_KEY:
+        s = _sign_in_jace_os()
+        if s:
+            return s
+        raise SocialError(_why_not() or "Couldn't sign in to Jace Social.")
     why = can_sign_in()
     if why:
         raise SocialError(why)
@@ -74,7 +118,7 @@ def sign_out():
         except Exception:  # noqa: BLE001 - signing out locally is what matters
             pass
         all_s = _sessions()
-        all_s.pop(s["uuid"], None)
+        all_s.pop(_key(), None)
         write_json(SESSIONS_FILE, all_s)
 
 
@@ -90,10 +134,9 @@ def _call(method: str, path: str, data=None, auth=True, params=None, _retry=True
     except Exception as e:  # noqa: BLE001
         raise SocialError(f"Can't reach Jace Social ({e.__class__.__name__}). Check your internet connection.") from e
     if r.status_code == 401 and auth and _retry:      # session expired: sign in again once
-        acc = accounts.current()
-        if acc:
+        if key := _key():
             all_s = _sessions()
-            all_s.pop(acc["uuid"], None)
+            all_s.pop(key, None)
             write_json(SESSIONS_FILE, all_s)
         return _call(method, path, data, auth, params, _retry=False)
     try:

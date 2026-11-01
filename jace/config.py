@@ -43,6 +43,7 @@ DEFAULT_SETTINGS = {
     "show_old_versions": False,
     "curseforge_api_key": "",
     "azure_client_id": "",    # optional: your own Azure app for Microsoft login
+    "jace_os_signin": True,   # Jace OS: sign in to Jace Social with the computer's Jace account
 }
 
 
