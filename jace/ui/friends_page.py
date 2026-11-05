@@ -30,11 +30,11 @@ def _load_head(label: QLabel, uuid: str, size=40):
 
     def fetch():
         sk = local_friends.skin(uuid)
-        if not sk:
-            raise LookupError("default skin")
-        return fetch_image(sk[0])
+        return fetch_image(sk[0]) if sk else None   # None: default skin / no Minecraft account
 
     def done(img):
+        if img is None:
+            return
         _heads[uuid] = img
         try:
             label.setPixmap(render_head(img, size))
@@ -342,7 +342,7 @@ class FriendsPage(QWidget):
         self.add_btn.setEnabled(s is not None)
         self.refresh_btn.setEnabled(s is not None)
         if s:
-            self.who.setText(f"  signed in as {s['name']}")
+            self.who.setText(f"  signed in as {s.get('name') or '?'}")
             self.chat.my_uuid = s["uuid"]
             self._poll.start()
         else:

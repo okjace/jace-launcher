@@ -243,7 +243,10 @@ def lookup_player_skin(name: str) -> tuple[str, bool, str | None]:
 
 def skin_for_uuid(pid: str, name: str = "") -> tuple[str, bool, str | None]:
     """Public skin lookup by profile UUID via Mojang's session server."""
-    prof = session.get(f"https://sessionserver.mojang.com/session/minecraft/profile/{pid}", timeout=20).json()
+    r = session.get(f"https://sessionserver.mojang.com/session/minecraft/profile/{pid}", timeout=20)
+    if r.status_code != 200:                   # not a Minecraft account (e.g. a Jace-only Jace Social friend)
+        raise AuthError(f"'{name or pid}' has no Minecraft skin")
+    prof = r.json()
     for p in prof.get("properties", []):
         if p["name"] == "textures":
             tex = json.loads(base64.b64decode(p["value"]))["textures"]

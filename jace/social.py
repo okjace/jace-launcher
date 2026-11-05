@@ -81,6 +81,10 @@ def _sign_in_jace_os() -> dict | None:
         return None
     if not s or not s.get("token"):
         return None
+    if not s.get("name"):                      # (the Minecraft sign-in's session has it; this one doesn't)
+        info = jaceos._run("--json") or {}
+        u = info.get("user") or {}
+        s["name"] = u.get("username") or u.get("name") or "Jace"
     all_s = _sessions()
     all_s[JACE_OS_KEY] = s
     write_json(SESSIONS_FILE, all_s)

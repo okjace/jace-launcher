@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.11.3
+- **Fixed:** signing in to Jace Social with your Jace OS account showed "KeyError: 'name'" on the Friends page. It now shows your Jace username.
+- Friends who don't have a Minecraft account no longer cause a background error when their head picture loads.
+
 ## 1.11.2
 - **Jace OS: sign in to Jace Social with the computer's Jace account.** When no Microsoft account is selected (an offline account, or none), Jace Launcher signs in to Jace Social with your Jace account on Jace OS. Before, friends and chat needed a Microsoft account.
   - It uses Jace OS's `jace-account` tool. Jace Social checks the token with Jace before making a session.
