@@ -42,6 +42,7 @@ def pyinstaller(name: str, icon: Path, extra=()):
          "--collect-all", "minecraft_launcher_lib",
          "--hidden-import", "PySide6.QtWebEngineWidgets", "--hidden-import", "PySide6.QtWebEngineCore",
          "--hidden-import", "PySide6.QtMultimedia", "--collect-all", "aiortc",   # voice calls
+         "--exclude-module", "tkinter", "--exclude-module", "_tkinter",          # Qt app: no Tcl/Tk
          *extra, ROOT / "packaging" / "entry.py"])
     return BUILD / "dist"
 
@@ -67,19 +68,21 @@ def vc_runtime_args() -> list:
 def build_windows():
     """One self-installing .exe: a onefile build that also carries a small onedir
     launcher, which the setup wizard installs next to the unpacked app files."""
-    from PIL import Image
     vc = vc_runtime_args()
     onedir = pyinstaller("JaceLauncher", ASSETS / "icon.ico", vc)
+    # No Tcl/Tk inside: PyInstaller's --splash used it, and unpacking it failed on some PCs
+    # ("Failed to extract ... tk"), so the .exe didn't start at all.
+    tk = [p for p in (onedir / "JaceLauncher").rglob("*") if p.name.lower().startswith(("_tcl_data", "_tk_data", "tcl8", "tk8"))]
+    if tk:
+        sys.exit(f"Tcl/Tk got into the build: {tk[:3]}")
     launcher = onedir / "JaceLauncher" / "JaceLauncher.exe"
     keep = ROOT / "build" / "win-launcher"
     shutil.rmtree(keep, ignore_errors=True)
     keep.mkdir(parents=True)
     shutil.copy2(launcher, keep / "JaceLauncher.exe")
 
-    splash = ROOT / "build" / "splash.png"
-    Image.open(ASSETS / "icon.png").convert("RGBA").resize((256, 256), Image.NEAREST).save(splash)
     out = pyinstaller("JaceLauncher", ASSETS / "icon.ico",
-                      [*vc, "--onefile", "--splash", splash,
+                      [*vc, "--onefile",
                        "--add-data", f"{keep / 'JaceLauncher.exe'}{os.pathsep}jace_setup"])
     DIST.mkdir(exist_ok=True)
     final = DIST / f"JaceLauncher-{APP_VERSION}-windows-x64.exe"

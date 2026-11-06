@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.11.4
+- **Fixed on Windows:** the setup `.exe` could fail to start with a "Failed to extract … tk" error. Its little loading picture was drawn with Tcl/Tk, which had to be unpacked first, and on some PCs (antivirus, or a locked or full temp folder) that failed. The loading picture is gone and Tcl/Tk isn't in the build anymore. Jace Launcher itself uses Qt.
+
 ## 1.11.3
 - **Fixed:** signing in to Jace Social with your Jace OS account showed "KeyError: 'name'" on the Friends page. It now shows your Jace username.
 - Friends who don't have a Minecraft account no longer cause a background error when their head picture loads.
