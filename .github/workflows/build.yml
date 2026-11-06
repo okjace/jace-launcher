@@ -202,7 +202,8 @@ jobs:
           if xattr -r "$APP" | grep -q com.apple.quarantine; then echo "::error::app still quarantined"; exit 1; fi
           QT_QPA_PLATFORM=offscreen "$APP/Contents/MacOS/Jace Launcher" --self-test
           "$APP/Contents/MacOS/Jace Launcher" --uninstall
-          sleep 5
+          # the app is deleted after it quits; slower runners (Intel) can take longer than a few seconds
+          for i in $(seq 1 30); do [ -e "$APP" ] || break; sleep 1; done
           test ! -e "$APP"
           test ! -e "$HOME/Desktop/Jace Launcher"
           if defaults read com.apple.dock persistent-apps | grep -q "Jace%20Launcher.app"; then echo "::error::Dock icon left behind"; exit 1; fi
